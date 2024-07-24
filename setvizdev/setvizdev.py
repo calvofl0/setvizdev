@@ -22,6 +22,7 @@ djb2_hash = lambda x: functools.reduce(lambda x, c: 0xFFFFFFFF & (x * 33 + c), x
 localhash = djb2_hash([ord(c) for c in socket.gethostname()])
 hosthashes = np.empty(sz, dtype=np.int64)
 comm.Allgather(np.array([localhash], dtype=np.int64), hosthashes)
+_ntasks_on_node = list(hosthashes).count(localhash)
 
 # Compute local (within node) rank
 localRank = 0
@@ -40,15 +41,15 @@ def gpus_per_task(ngpus: int = None):
 
     :return: Number of gpus
     """
+    global _ngpus
     if not ngpus is None:
         _ngpus = ngpus
-        os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(
-            [str(r) for r in range(ngpus * localRank, ngpus * (localRank + 1))]
-        )
+        if _ngpus > 0:
+            os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(
+                [str(r) for r in range(_ngpus * localRank, _ngpus * (localRank + 1))]
+            )
 
     return _ngpus
 
-
-gpus_per_task(_ngpus)
 
 __all__ = ["gpus_per_task"]
